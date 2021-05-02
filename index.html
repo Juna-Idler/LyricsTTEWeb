@@ -3,8 +3,6 @@
 <meta charset="utf-8">
 <title>ページのタイトル</title>
 
-<script type='text/javascript' src='WaveViewer.js' defer></script>
-
 <style>
     html,body{
         height :100%;
@@ -78,6 +76,30 @@
         margin: 4px;
         padding: 4px;
     }
+    ol
+    {
+        list-style-type: decimal-leading-zero;
+        width: 100%;
+    }
+    li
+    {
+        border-bottom: solid 2px #dadada;
+        margin-bottom: 2px;
+        line-height: 1.5;
+    }
+    li::marker
+    {
+
+    }
+    .list_time
+    {
+        background-color: lightgray;
+        margin-left: 5px;
+    }
+    .list_text
+    {
+        margin-left: 5px;
+    }
 </style>
 
 </head>
@@ -99,7 +121,8 @@
         <label for="TabTune" id=TabTuneLabel class="tab_label">TimeTune</label>
     </div>
     <div id="TagStamper" class="TabContent">
-        Tag Stamper
+        <ol id="StamperList">
+        </ol>
     </div>
     <div id="TextEditor" class="TabContent">
         <textarea id="TextArea"></textarea>
@@ -109,6 +132,8 @@
     </div>
     <div id="TimeTuner" class="TabContent">Time Tuner</div>
 </div>
+<script type='text/javascript' src='WaveViewer.js' defer></script>
+<script type='text/javascript' src='Lyrics.js' defer></script>
 <script defer>
 
 (function LrCDownload(){
@@ -139,7 +164,11 @@ document.getElementById('Download').addEventListener('click', (e)=>{
 
 const audio = document.getElementById("AudioPlayer");
 const canvas = document.getElementById( 'WaveCanvas' );
+const textarea = document.getElementById('TextArea');
+
 var waveViewer;
+var textMode = true;
+var TimeTagList;
 
 (function AudioEvent(){
 
@@ -181,8 +210,8 @@ audio.addEventListener("ended",()=>{
         function onMouseUp(e){
             if (playing)
                 audio.play();
-            document.removeEventListener('mousemove', onMouseMove);
-            document.removeEventListener('mouseup', onMouseUp);
+            document.removeEventListener('mousemove', onMouseMove, false);
+            document.removeEventListener('mouseup', onMouseUp, false);
         }
         document.addEventListener("mousemove",onMouseMove, false);
         document.addEventListener("mouseup",onMouseUp, false);
@@ -228,11 +257,47 @@ function setCanvasSize() {
 }());
 
 (function TagStamper(){
-    const tab_stamp = document.getElementById("TabStamp");
-    tab_stamp.addEventListener("click",(ev)=>{
+const tab_stamp = document.getElementById("TabStamp");
+tab_stamp.addEventListener("click",(ev)=>{
+    if (textMode)
+    {
+        textMode = false;
+        TimeTagList = new LyricsContainer(textarea.value);
+    }
+    const list = document.getElementById('StamperList');
+    while (list.firstChild)
+        list.firstChild.remove();
 
+    TimeTagList.lines.forEach(e => {
+        const li = document.createElement("li");
+        const starttime = document.createElement("span");
+        starttime.textContent = TimeTagElement.TimeString(e.starttime);
+        starttime.classList.add("list_time");
+
+        const text = document.createElement("span");
+        text.textContent = e.text;
+        text.classList.add("list_text");
+
+        li.appendChild(starttime);
+        li.appendChild(text);
+        list.appendChild(li);
     });
+});
+
+
 }());
+
+(function TextEditor(){
+const tab_edit = document.getElementById("TabEdit");
+tab_edit.addEventListener("click",(ev)=>{
+    if (!textMode)
+    {
+        textMode = true;
+        textarea.value = TimeTagList.toString();
+    }
+});
+
+}())
 
 
 (function FilesDrop(){
@@ -308,11 +373,10 @@ function DropFiles(files)
                 let reader = new FileReader();
                 reader.readAsText(file);
                 reader.onload = ()=> {
-                    document.getElementById('TextArea').value = reader.result;
-                }                
+                    textarea.value = reader.result;
+
+                }
             }
-
-
         }
         else
         {
