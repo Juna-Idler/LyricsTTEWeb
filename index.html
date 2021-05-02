@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html>
+<meta charset="utf-8">
+<title>ページのタイトル</title>
+
+<script type='text/javascript' src='WaveViewer.js' defer></script>
+
+<style>
+    html,body{
+        height :100%;
+        margin:0;
+    }
+    #Screen
+    {
+        display: flex;
+        flex-direction: column;
+        height :100%;
+        padding:2px;
+        box-sizing: border-box;
+    }
+    #WaveDisplay
+    {
+        width: 100%;
+        resize: vertical;
+        overflow: hidden;
+
+        flex: 0 0 auto;
+    }
+    #WaveCanvas
+    {
+        background-color: black;
+    }
+
+    #TabLabels
+    {
+        flex: 0 1 auto;
+    }
+    input[name="mode_tab"]
+    {
+        display: none;
+    }
+    .TabContent{
+        display: none;
+    }
+    .tab_label
+    {
+        margin:0px 8px;
+        border-bottom: 3px solid #5ab4bd;
+        background-color: #d9d9d9;
+    }
+    #TabStamp:checked ~ * #TabStampLabel ,
+    #TabEdit:checked ~ * #TabEditLabel ,
+    #TabTune:checked ~ * #TabTuneLabel 
+    {
+        background-color: #5ab4bd;
+        color: #fff;
+    }
+    #TabStamp:checked ~ #TagStamper ,
+    #TabEdit:checked ~ #TextEditor ,
+    #TabTune:checked ~ #TimeTuner
+    {
+        display:flex;
+    }
+
+    #TextEditor
+    {
+        height :100%;
+/*        display: flex;*/
+        flex-direction: column;
+
+        flex: 1 1 auto;
+    }    
+    #TextArea
+    {
+        height: 100%;
+        resize:none;
+        flex:1 1 auto;
+        margin: 4px;
+        padding: 4px;
+    }
+</style>
+
+</head>
+<body>
+<div id="Screen">
+    <div id="Player">
+        <audio id="AudioPlayer" preload controls>
+        </audio>
+    </div>
+    <div id="WaveDisplay">
+        <canvas id="WaveCanvas"></canvas>
+    </div>
+    <input type="radio" id="TabStamp" name="mode_tab">
+    <input type="radio" id="TabEdit" name="mode_tab" checked>
+    <input type="radio" id="TabTune" name="mode_tab">
+    <div id="TabLabels">
+        <label for="TabStamp" id="TabStampLabel" class="tab_label">TagStamp</label>
+        <label for="TabEdit" id="TabEditLabel" class="tab_label">TextEdit</label>
+        <label for="TabTune" id=TabTuneLabel class="tab_label">TimeTune</label>
+    </div>
+    <div id="TagStamper" class="TabContent">
+        Tag Stamper
+    </div>
+    <div id="TextEditor" class="TabContent">
+        <textarea id="TextArea"></textarea>
+        <div id="TextEditButtons">
+            <button id="Download" type="button">ダウンロード</button>
+        </div>
+    </div>
+    <div id="TimeTuner" class="TabContent">Time Tuner</div>
+</div>
+<script defer>
+
+(function LrCDownload(){
+document.getElementById('Download').addEventListener('click', (e)=>{
+    e.preventDefault();
+    const text = document.getElementById('TextArea').value;
+    const blob = new Blob([text], {type: 'text/plain'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    document.body.appendChild(a);
+
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = ('00' + (now.getMonth()+1)).slice(-2);
+    const d = ('00' + now.getDate()).slice(-2);
+    const h = ('00' + now.getHours()).slice(-2);
+    const mi = ('00' + (now.getMinutes()+1)).slice(-2);
+
+    a.download = y + "-" + m + d + "-" + h + mi + '.lrc';
+    a.href = url;
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+});
+}());
+
+
+
+const audio = document.getElementById("AudioPlayer");
+const canvas = document.getElementById( 'WaveCanvas' );
+var waveViewer;
+
+(function AudioEvent(){
+
+function Tick(timestamp)
+{
+    waveViewer.DrawCanvas(canvas,audio.currentTime * 1000,1000/500);
+    if (!audio.paused)
+        window.requestAnimationFrame(Tick);
+}
+audio.addEventListener("timeupdate",()=>{
+    waveViewer.DrawCanvas(canvas,audio.currentTime * 1000,1000/500);
+});
+audio.addEventListener("play",()=>{
+    window.requestAnimationFrame(Tick);
+});
+audio.addEventListener("pause", ()=>{
+});
+audio.addEventListener("ended",()=>{
+});
+}());
+
+(function WaveViewerMouseEvent(){
+    var x;
+    var playing;
+    const canvas = document.getElementById( 'WaveCanvas' );
+    canvas.ondragstart = (e)=>{return false;}
+    canvas.addEventListener("mousedown", (e)=>{
+        playing = !audio.paused;
+        if (!audio.paused)
+            audio.pause();
+        x = e.pageX;
+        function onMouseMove(e) {
+            let time = audio.currentTime -  (e.pageX - x) * (1000 / 500) / 1000;
+            if (time < 0)
+                time = 0;
+            audio.currentTime = time;
+            x = e.pageX;
+        }
+        function onMouseUp(e){
+            if (playing)
+                audio.play();
+            document.removeEventListener('mousemove', onMouseMove);
+            document.removeEventListener('mouseup', onMouseUp);
+        }
+        document.addEventListener("mousemove",onMouseMove, false);
+        document.addEventListener("mouseup",onMouseUp, false);
+    }, false);
+}());
+
+(function CanvasResize(){
+const container = document.getElementById( 'WaveDisplay' ),
+queue = null,
+wait = 300;
+
+//これがない（＝CSS指定のresizeで一度リサイズしない）と、何故かwindowのリサイズの度に7pxずつ増えていく
+container.style.height = container.offsetHeight + "px";
+
+setCanvasSize();
+
+window.addEventListener( 'resize', function() {
+    clearTimeout( queue );
+    queue = setTimeout(function() {setCanvasSize();}, wait );
+}, false );
+
+const observer = new MutationObserver(() => {
+    clearTimeout( queue );
+    queue = setTimeout(function() {
+        setCanvasSize();
+    }, wait );
+});
+observer.observe(container, {
+    attriblutes: true,
+    attributeFilter: ["style"]
+});
+// Canvasサイズをコンテナの100%に 
+function setCanvasSize() {
+    canvas.width = container.offsetWidth;
+    canvas.height = container.offsetHeight;
+    var ctx = canvas.getContext("2d");
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+
+    if (waveViewer)
+        waveViewer.DrawCanvas(canvas,audio.currentTime*1000,1000/500);
+
+}
+}());
+
+(function TagStamper(){
+    const tab_stamp = document.getElementById("TabStamp");
+    tab_stamp.addEventListener("click",(ev)=>{
+
+    });
+}());
+
+
+(function FilesDrop(){
+var droparea = document.createElement("div")
+	
+	function showDroparea(){
+        droparea.style.cssText = "all: initial;\
+                                  position: fixed;\
+                                  top:0;left:0;\
+                                  z-index: 1000;\
+                                  width: 100%;\
+                                  height: 100%;\
+                                  box-sizing: border-box;\
+                                  display: block;\
+                                  border: 8px dashed purple;"
+	}
+	
+	function hideDroparea(){
+        droparea.style.cssText = "all: initial;\
+                                  position: fixed;\
+                                  top:0;left:0;\
+                                  z-index: 1000;\
+                                  width: 100%;\
+                                  height: 100%;\
+                                  box-sizing: border-box;\
+                                  display: none;";
+    }
+	
+	droparea.ondragleave = e => {
+		e.preventDefault();
+		hideDroparea();
+	};
+	
+	window.addEventListener("dragover", e => e.preventDefault(), false)
+	window.addEventListener("dragenter", e => {
+		e.preventDefault();
+		showDroparea();
+	}, false);
+	window.addEventListener("drop", e => {
+		e.preventDefault();
+		hideDroparea();
+
+        DropFiles(e.dataTransfer.files);
+	}, false);
+	
+	document.body.appendChild(droparea);
+
+
+function DropFiles(files)
+{
+    for (let i = 0;i < files.length;i++)
+    {
+        const file = files[i]
+        if (file.type.indexOf("audio/") == 0)
+        {
+            console.log("drop audio file:" + file.name);
+            audio.src = window.URL.createObjectURL(file);
+            var reader = new FileReader();
+            reader.onload = () => {
+                waveViewer = new WaveViewer(reader.result);
+                waveViewer.DrawCanvas(canvas,audio.currentTime * 1000,1000/500);
+
+            };
+            reader.readAsArrayBuffer(file);
+
+        }
+        else if (file.type.indexOf("text/") == 0 || file.name.match(/\.lrc$/i))
+        {
+            console.log("drop text file:" + file.name);
+            const editmode = document.getElementById( 'TabEdit' ).checked;
+            if (editmode)
+            {
+                let reader = new FileReader();
+                reader.readAsText(file);
+                reader.onload = ()=> {
+                    document.getElementById('TextArea').value = reader.result;
+                }                
+            }
+
+
+        }
+        else
+        {
+            console.log("ignore drop file:" + file.name);
+        }
+    }
+}
+})();
+
+
+
+</script>
+</body>
+</html>
