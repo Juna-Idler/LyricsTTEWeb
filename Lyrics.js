@@ -19,7 +19,7 @@ class TimeTagElement
     }
     toString()
     {
-        return TimeString(this.strttime) + this.text;
+        return TimeTagElement.TimeString(this.starttime) + this.text;
     }
     static TimeString(time_ms)
     {
@@ -39,10 +39,10 @@ class LyricsContainer
     toString()
     {
         let ret = "";
-        this.lines.forEach(line)
+        this.lines.forEach(line =>
         {
             ret += line.toString() + "\n";
-        }
+        });
         return ret;
     }
 }

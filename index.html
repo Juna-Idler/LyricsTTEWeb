@@ -33,7 +33,7 @@
     {
         flex: 0 1 auto;
     }
-    input[name="mode_tab"]
+    input[name="mode_tab"] , input[name="stamp_line"]
     {
         display: none;
     }
@@ -63,7 +63,6 @@
     #TextEditor
     {
         height :100%;
-/*        display: flex;*/
         flex-direction: column;
 
         flex: 1 1 auto;
@@ -76,16 +75,25 @@
         margin: 4px;
         padding: 4px;
     }
+
+    #TagStamper
+    {
+        height: 100%;
+        flex: 1 1 auto;
+        overflow-y :scroll;
+        border: black 1px solid;
+        margin: 4px;
+    }
     ol
     {
         list-style-type: decimal-leading-zero;
         width: 100%;
+        margin: 2px 0;
     }
     li
     {
-        border-bottom: solid 2px #dadada;
-        margin-bottom: 2px;
-        line-height: 1.5;
+        border-bottom: solid 1px #cccccc;
+        line-height: 2;
     }
     li::marker
     {
@@ -93,13 +101,25 @@
     }
     .list_time
     {
-        background-color: lightgray;
+        background-color:#eeeeee ;
         margin-left: 5px;
+        text-align: center;
+        flex: 0 0 6em;
     }
     .list_text
     {
-        margin-left: 5px;
+        padding-left: 5px;
+        flex: 1 1 auto;
     }
+    input:checked ~ .list_time , input:checked ~ .list_text
+    {
+        background-color:#FFDDDD ;
+    }
+    .flex
+    {
+        display: flex;
+    }
+
 </style>
 
 </head>
@@ -167,19 +187,36 @@ const canvas = document.getElementById( 'WaveCanvas' );
 const textarea = document.getElementById('TextArea');
 
 var waveViewer;
-var textMode = true;
-var TimeTagList;
+var TimeTagList = null;
 
 (function AudioEvent(){
 
 function Tick(timestamp)
 {
-    waveViewer.DrawCanvas(canvas,audio.currentTime * 1000,1000/500);
+    const width  = canvas.width;
+    const height = canvas.height;
+    const nowpoint = Math.floor(width * 0.3)
+
+    waveViewer.DrawCanvas(canvas,audio.currentTime * 1000 - (nowpoint * 2),1000/500);
+
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = "white";
+    ctx.fillRect(nowpoint,0,1,height);
+
     if (!audio.paused)
         window.requestAnimationFrame(Tick);
 }
 audio.addEventListener("timeupdate",()=>{
-    waveViewer.DrawCanvas(canvas,audio.currentTime * 1000,1000/500);
+    const width  = canvas.width;
+    const height = canvas.height;
+    const nowpoint = Math.floor(width * 0.3)
+    waveViewer.DrawCanvas(canvas,audio.currentTime * 1000 - (nowpoint * 2),1000/500);
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = "white";
+    ctx.fillRect(nowpoint,0,1,height);
+
+    console.log("timeupdate nowpoint:" + nowpoint);
+
 });
 audio.addEventListener("play",()=>{
     window.requestAnimationFrame(Tick);
@@ -197,19 +234,27 @@ audio.addEventListener("ended",()=>{
     canvas.ondragstart = (e)=>{return false;}
     canvas.addEventListener("mousedown", (e)=>{
         playing = !audio.paused;
-        if (!audio.paused)
-            audio.pause();
+        audio.pause();
+        console.log("md currentTime:" + audio.currentTime);
         x = e.pageX;
         function onMouseMove(e) {
             let time = audio.currentTime -  (e.pageX - x) * (1000 / 500) / 1000;
             if (time < 0)
                 time = 0;
+
+            //なんかここでエラーが出てるっぽいんだが全くわからん。
+            //とりあえずテスト用ファイルのデータ異常ではないか？という事にしておく。
+            //「魔王魂 ショート シャイニングスター.mp3」の0.65秒あたりに設定すると、
+            //以後、イベント"timeupdate"が発生しなくなる。
+            //再生しなおすと元に戻る。
             audio.currentTime = time;
             x = e.pageX;
+            console.log("mm currentTime:" + audio.currentTime);
         }
         function onMouseUp(e){
             if (playing)
                 audio.play();
+            console.log("mu currentTime:" + audio.currentTime);
             document.removeEventListener('mousemove', onMouseMove, false);
             document.removeEventListener('mouseup', onMouseUp, false);
         }
@@ -219,9 +264,9 @@ audio.addEventListener("ended",()=>{
 }());
 
 (function CanvasResize(){
-const container = document.getElementById( 'WaveDisplay' ),
-queue = null,
-wait = 300;
+const container = document.getElementById( 'WaveDisplay' );
+var queue = null;
+const wait = 300;
 
 //これがない（＝CSS指定のresizeで一度リサイズしない）と、何故かwindowのリサイズの度に7pxずつ増えていく
 container.style.height = container.offsetHeight + "px";
@@ -259,9 +304,8 @@ function setCanvasSize() {
 (function TagStamper(){
 const tab_stamp = document.getElementById("TabStamp");
 tab_stamp.addEventListener("click",(ev)=>{
-    if (textMode)
+    if (TimeTagList == null)
     {
-        textMode = false;
         TimeTagList = new LyricsContainer(textarea.value);
     }
     const list = document.getElementById('StamperList');
@@ -270,6 +314,14 @@ tab_stamp.addEventListener("click",(ev)=>{
 
     TimeTagList.lines.forEach(e => {
         const li = document.createElement("li");
+        const label = document.createElement("label");
+        label.classList.add("flex");
+        label.textContent = "　";
+        const radio = document.createElement("input");
+        radio.type = "radio";
+        radio.name = "stamp_line";
+        label.appendChild(radio);
+
         const starttime = document.createElement("span");
         starttime.textContent = TimeTagElement.TimeString(e.starttime);
         starttime.classList.add("list_time");
@@ -278,8 +330,9 @@ tab_stamp.addEventListener("click",(ev)=>{
         text.textContent = e.text;
         text.classList.add("list_text");
 
-        li.appendChild(starttime);
-        li.appendChild(text);
+        label.appendChild(starttime);
+        label.appendChild(text);
+        li.appendChild(label);
         list.appendChild(li);
     });
 });
@@ -290,14 +343,14 @@ tab_stamp.addEventListener("click",(ev)=>{
 (function TextEditor(){
 const tab_edit = document.getElementById("TabEdit");
 tab_edit.addEventListener("click",(ev)=>{
-    if (!textMode)
+    if (TimeTagList != null)
     {
-        textMode = true;
         textarea.value = TimeTagList.toString();
+        TimeTagList = null;
     }
 });
 
-}())
+}());
 
 
 (function FilesDrop(){
