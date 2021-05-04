@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <meta charset="utf-8">
-<title>ページのタイトル</title>
+<title>LyricsTTE Web</title>
 
 <style>
     html,body{
@@ -76,7 +76,7 @@
         padding: 4px;
     }
 
-    #TagStamper
+    #TagStamper , #TimeTuner
     {
         height: 100%;
         flex: 1 1 auto;
@@ -150,7 +150,10 @@
             <button id="Download" type="button">ダウンロード</button>
         </div>
     </div>
-    <div id="TimeTuner" class="TabContent">Time Tuner</div>
+    <div id="TimeTuner" class="TabContent">
+        <ol id="TunerList">
+        </ol>
+    </div>
 </div>
 <script type='text/javascript' src='WaveViewer.js' defer></script>
 <script type='text/javascript' src='Lyrics.js' defer></script>
@@ -187,33 +190,50 @@ const canvas = document.getElementById( 'WaveCanvas' );
 const textarea = document.getElementById('TextArea');
 
 var waveViewer;
-var TimeTagList = null;
+var Magnification = 500;
+var WaveViewTime = 0;
+var TuneModeDraw = null;
+
+var EditModeInitializer;
+var StampModeInitializer;
+var TuneModeInitializer;
 
 function DrawWaveView()
 {
+    if (TuneModeDraw)
+    {
+        TuneModeDraw();
+        return;
+    }
+
     const width  = canvas.width;
     const height = canvas.height;
     const nowpoint = Math.floor(width * 0.3)
-    waveViewer.DrawCanvas(canvas,audio.currentTime * 1000 - (nowpoint * 2),1000/500);
+    waveViewer.DrawCanvas(canvas,WaveViewTime - (nowpoint * 1000/Magnification),1000/Magnification);
     const ctx = canvas.getContext("2d");
     ctx.fillStyle = "white";
     ctx.fillRect(nowpoint,0,1,height);
 }
 
 
+
 (function AudioEvent(){
 
 function Tick(timestamp)
 {
+    WaveViewTime = audio.currentTime * 1000;
     DrawWaveView();
     if (!audio.paused)
         window.requestAnimationFrame(Tick);
 }
 audio.addEventListener("timeupdate",()=>{
+    if (TuneModeDraw == null)
+        WaveViewTime = audio.currentTime * 1000;
     DrawWaveView();
 });
 audio.addEventListener("play",()=>{
-    window.requestAnimationFrame(Tick);
+    if (TuneModeDraw == null)
+        window.requestAnimationFrame(Tick);
 });
 audio.addEventListener("pause", ()=>{
 });
@@ -227,25 +247,33 @@ audio.addEventListener("ended",()=>{
     const canvas = document.getElementById( 'WaveCanvas' );
     canvas.ondragstart = (e)=>{return false;}
     canvas.addEventListener("mousedown", (e)=>{
-        playing = !audio.paused;
-        audio.pause();
+        if (TuneModeDraw == null)
+        {
+            playing = !audio.paused;
+            audio.pause();
+        }
         x = e.pageX;
         function onMouseMove(e) {
-            let time = audio.currentTime -  (e.pageX - x) * (1000 / 500) / 1000;
-            if (time < 0)
-                time = 0;
+            WaveViewTime -=  (e.pageX - x) * (1000 / 500);
+            if (WaveViewTime < 0)
+                WaveViewTime = 0;
 
             //なんかここでエラーが出てるっぽいんだが全くわからん。
             //とりあえずテスト用ファイルのデータ異常ではないか？という事にしておく。
             //「魔王魂 ショート シャイニングスター.mp3」の0.65秒あたりに設定すると、
             //以後、イベント"timeupdate"が発生しなくなる。play()もできなくなるっぽい
             //コントローラーで再生しなおすと元に戻る。
-            audio.currentTime = time;
+//            audio.currentTime = time;
             x = e.pageX;
+            DrawWaveView();
         }
         function onMouseUp(e){
-            if (playing)
-                audio.play();
+            if (TuneModeDraw == null)
+            {
+                audio.currentTime = WaveViewTime / 1000;
+                if (playing)
+                    audio.play();
+            }
             document.removeEventListener('mousemove', onMouseMove, false);
             document.removeEventListener('mouseup', onMouseUp, false);
         }
@@ -292,8 +320,58 @@ function setCanvasSize() {
 }
 }());
 
-(function TagStamper(){
+
+(function ModeShifter(){
+
+const tab_edit = document.getElementById("TabEdit");
 const tab_stamp = document.getElementById("TabStamp");
+const tab_tune = document.getElementById("TabTune");
+
+var LastMode = "edit";
+
+function TabChange(e)
+{
+    switch (LastMode)
+    {
+        case "edit":
+            if (tab_edit.checked) return;
+            EditModeInitializer.Terminalize();
+        break;
+        case "stamp":
+            if (tab_stamp.checked) return;
+            StampModeInitializer.Terminalize();
+        break;
+        case "tune":
+            if (tab_tune.checked) return;
+            TuneModeInitializer.Terminalize();
+        break;
+    }
+    if (tab_edit.checked)
+    {
+        EditModeInitializer.Initialize();
+        LastMode = "edit";
+    }
+    else if (tab_stamp.checked)
+    {
+        StampModeInitializer.Initialize();
+        LastMode = "stamp";
+    }
+    else if (tab_tune)
+    {
+        TuneModeInitializer.Initialize();
+        LastMode = "tune";
+    }
+}
+
+tab_edit.addEventListener("change",TabChange);
+tab_stamp.addEventListener("change",TabChange);
+tab_tune.addEventListener("change",TabChange);
+
+}());
+
+
+(function TagStamper(){
+
 const list = document.getElementById('StamperList');
 
 function keydown(e)
@@ -395,78 +473,231 @@ function keydown(e)
     }
 }
 
-tab_stamp.addEventListener("change",(ev)=>{
-    if (tab_stamp.checked)
+function Initialize()
+{
+    const TimeTagList = new LyricsContainer(textarea.value);
+    selected = 0;
+
+    TimeTagList.lines.forEach(line => {
+        const li = document.createElement("li");
+
+        const label = document.createElement("label");
+        label.classList.add("flex");
+        label.textContent = "　";
+        label.dataset.starttime = line.starttime;
+        const radio = document.createElement("input");
+        radio.type = "radio";
+        radio.name = "stamp_line";
+        label.appendChild(radio);
+
+        const starttime = document.createElement("span");
+        starttime.textContent = TimeTagElement.TimeString(line.starttime);
+        starttime.classList.add("list_time");
+
+        const text = document.createElement("span");
+        text.textContent = line.text;
+        text.classList.add("list_text");
+
+        label.appendChild(starttime);
+        label.appendChild(text);
+        li.appendChild(label);
+        list.appendChild(li);
+    });
+    list.querySelector("input").checked = true;
+
+    document.addEventListener("keydown",keydown,false);
+}
+
+function Terminalize()
+{
+    let text = "";
+    for (let i = 0; i < list.children.length;i++)
     {
-        if (TimeTagList == null)
-        {
-            TimeTagList = new LyricsContainer(textarea.value);
-        }
-        while (list.firstChild)
-            list.firstChild.remove();
-        selected = 0;
-
-        TimeTagList.lines.forEach(line => {
-            const li = document.createElement("li");
-
-            const label = document.createElement("label");
-            label.classList.add("flex");
-            label.textContent = "　";
-            label.dataset.starttime = line.starttime;
-            const radio = document.createElement("input");
-            radio.type = "radio";
-            radio.name = "stamp_line";
-            label.appendChild(radio);
-
-            const starttime = document.createElement("span");
-            starttime.textContent = TimeTagElement.TimeString(line.starttime);
-            starttime.classList.add("list_time");
-
-            const text = document.createElement("span");
-            text.textContent = line.text;
-            text.classList.add("list_text");
-
-            label.appendChild(starttime);
-            label.appendChild(text);
-            li.appendChild(label);
-            list.appendChild(li);
-        });
-        list.querySelector("input").checked = true;
-
-        document.addEventListener("keydown",keydown,false);
+        const item = list.children[i];
+        const time_span = item.querySelector(".list_time");
+        const text_span = item.querySelector(".list_text");
+        text += time_span.textContent + text_span.textContent + "\n";
     }
-    else
-    {
-        let lyrics = "";
-        for (let i = 0; i < list.children.length;i++)
-        {
-            const item = list.children[i];
-            const time_span = item.querySelector(".list_time");
-            const text_span = item.querySelector(".list_text");
-            lyrics += time_span.textContent + text_span.textContent + "\n";
-        }
-        TimeTagList = new LyricsContainer(lyrics);
-        document.removeEventListener("keydown",keydown,false);
-    }
-});
+    textarea.value = text.slice(0,-1);
+    while (list.firstChild)
+        list.firstChild.remove();
+    document.removeEventListener("keydown",keydown,false);
+}
 
+StampModeInitializer = {Initialize:Initialize,Terminalize:Terminalize};
 
 }());
 
 (function TextEditor(){
-const tab_edit = document.getElementById("TabEdit");
-tab_edit.addEventListener("change",(ev)=>{
-    if (tab_edit.checked)
+
+function Initialize()
+{
+}
+function Terminalize()
+{
+
+}
+EditModeInitializer = {Initialize:Initialize,Terminalize:Terminalize};
+}());
+
+(function TimeTuner(){
+
+const list = document.getElementById('TunerList');
+
+function keydown(e)
+{
+    e.preventDefault();
+
+    const input = list.querySelector("input:checked");
+    const label = input ? input.parentElement : null;
+    const item = label ? label.parentElement : null;
+
+    switch (e.code)
     {
-        if (TimeTagList != null)
-        {
-            textarea.value = TimeTagList.toString();
-            TimeTagList = null;
-        }
+        case "KeyA":case "ArrowLeft":
+        if (item)
+            {
+                let i = item
+                while (i.previousElementSibling)
+                {
+                    i = i.previousElementSibling;
+                    const time = i.querySelector("label").dataset.starttime;
+                    if (time >= 0)
+                    {
+                        audio.currentTime = time / 1000;
+                        i.querySelector("input").checked = true;
+                        i.scrollIntoView({behavior: "smooth", block: "center", inline: "nearest"})
+                        break;
+                    }
+                }
+            }
+        break;
+        case "KeyD":case "ArrowRight":
+            if (item)
+            {
+                let i = item
+                while (i.nextElementSibling)
+                {
+                    i = i.nextElementSibling;
+                    const time = i.querySelector("label").dataset.starttime;
+                    if (time >= 0)
+                    {
+                        audio.currentTime = time / 1000;
+                        i.querySelector("input").checked = true;
+                        i.scrollIntoView({behavior: "smooth", block: "center", inline: "nearest"})
+                        break;
+                    }
+                }
+            }
+        break;
+        case "KeyW":case "ArrowUp":
+            if (item && item.previousElementSibling)
+            {
+                item.previousElementSibling.querySelector("input").checked = true;
+                item.previousElementSibling.scrollIntoView({behavior: "smooth", block: "center", inline: "nearest"})
+            }
+        break;
+        case "KeyS":case "ArrowDown":
+            if (item && item.nextElementSibling)
+            {
+                item.nextElementSibling.querySelector("input").checked = true;
+                item.nextElementSibling.scrollIntoView({behavior: "smooth", block: "center", inline: "nearest"})
+            }
+        break;
+
+        case "Space":
+        case "Enter":
+            if (item)
+            {
+            }
+        break;
+        case "Delete":
+            if (item)
+            {
+            }
+        break;
+        
+        case "KeyZ":
+        break;
+        case "KeyX":
+        break;
+        case "KeyC":
+        break;
     }
-});
+}
+
+
+function TimeTunerDraw()
+{
+    const width  = canvas.width;
+    const height = canvas.height;
+    const nowpoint = Math.floor(width * 0.3)
+    waveViewer.DrawCanvas(canvas,WaveViewTime - (nowpoint * 1000/Magnification),1000/Magnification);
+    const ctx = canvas.getContext("2d");
+
+//    ctx.fillStyle = "white";
+//    ctx.fillRect(nowpoint,0,1,height);
+}
+
+function Initialize()
+{
+    const TimeTagList = new LyricsContainer(textarea.value);
+    selected = 0;
+
+    TimeTagList.lines.forEach(line => {
+        const li = document.createElement("li");
+
+        const label = document.createElement("label");
+        label.classList.add("flex");
+        label.textContent = "　";
+        label.dataset.starttime = line.starttime;
+        const radio = document.createElement("input");
+        radio.type = "radio";
+        radio.name = "stamp_line";
+        label.appendChild(radio);
+
+        const starttime = document.createElement("span");
+        starttime.textContent = TimeTagElement.TimeString(line.starttime);
+        starttime.classList.add("list_time");
+
+        const text = document.createElement("span");
+        text.textContent = line.text;
+        text.classList.add("list_text");
+
+        label.appendChild(starttime);
+        label.appendChild(text);
+        li.appendChild(label);
+        list.appendChild(li);
+    });
+    list.querySelector("input").checked = true;
+
+    document.addEventListener("keydown",keydown,false);
+    TuneModeDraw = TimeTunerDraw;
+    WaveViewTime = audio.currentTime;
+}
+
+function Terminalize()
+{
+    TuneModeDraw = null;
+    let text = "";
+    for (let i = 0; i < list.children.length;i++)
+    {
+        const item = list.children[i];
+        const time_span = item.querySelector(".list_time");
+        const text_span = item.querySelector(".list_text");
+        text += time_span.textContent + text_span.textContent + "\n";
+    }
+    textarea.value = text.slice(0,-1);
+    while (list.firstChild)
+        list.firstChild.remove();
+    document.removeEventListener("keydown",keydown,false);
+}
+
+TuneModeInitializer = {Initialize:Initialize,Terminalize:Terminalize};
 
 }());
+
+
 
 
 (function FilesDrop(){
@@ -517,15 +748,20 @@ var droparea = document.createElement("div")
 
 function DropFiles(files)
 {
+    let audioread = false;
+    let textread = false;
     for (let i = 0;i < files.length;i++)
     {
         const file = files[i]
         if (file.type.indexOf("audio/") == 0)
         {
             console.log("drop audio file:" + file.name);
+            if (audioread)
+                continue;
             audio.src = window.URL.createObjectURL(file);
             var reader = new FileReader();
             reader.onload = () => {
+                WaveViewTime = 0;
                 waveViewer = new WaveViewer(reader.result,DrawWaveView);
 
                 const ctx = canvas.getContext("2d");
@@ -534,13 +770,13 @@ function DropFiles(files)
                 ctx.fillText("Now Loading...", 0, canvas.height * 3 / 4);
             };
             reader.readAsArrayBuffer(file);
-
+            audioread = true;
         }
         else if (file.type.indexOf("text/") == 0 || file.name.match(/\.lrc$/i))
         {
             console.log("drop text file:" + file.name);
             const editmode = document.getElementById( 'TabEdit' ).checked;
-            if (editmode)
+            if (editmode && !textread)
             {
                 let reader = new FileReader();
                 reader.readAsText(file);
@@ -548,6 +784,7 @@ function DropFiles(files)
                     textarea.value = reader.result;
 
                 }
+                textread = true;
             }
         }
         else
