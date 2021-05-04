@@ -1,7 +1,7 @@
 
 class WaveViewer
 {
-    constructor(arrayBuffer)
+    constructor(arrayBuffer,onload)
     {
         this.ms_length = 0;
         this.minSampleSet = null;
@@ -51,6 +51,7 @@ class WaveViewer
                 this.maxSampleSet[this.ms_length-1] = Math.max(mono[sample_pos],this.maxSampleSet[this.ms_length-1]);
                 sample_pos++;
             }
+            onload(this);
         });
     }
     get isValid() {return this.ms_length != 0;}
