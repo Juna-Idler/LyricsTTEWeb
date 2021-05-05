@@ -8,6 +8,10 @@
         height :100%;
         margin:0;
     }
+    button, input, select, textarea {
+        font-family : inherit;
+        font-size : 100%;
+    }
     #Screen
     {
         display: flex;
@@ -17,6 +21,27 @@
         box-sizing: border-box;
 
         user-select: none;
+    }
+    #Player{
+        display: flex;
+        flex: 0 0 auto;
+    }
+    #AudioPlayer
+    {
+        width :50%;
+        flex: 1 0 50%;
+    }
+    .playerLabel
+    {
+        height :100%;
+        flex: 0 0 auto;
+        padding: 0px 2px;
+        margin: 0px 1px;
+        text-align: center;
+        border: black 1px solid;
+    }
+    #MagnificationSelector
+    {
     }
     #WaveDisplay
     {
@@ -34,6 +59,8 @@
     #TabLabels
     {
         flex: 0 1 auto;
+        padding-top: 2px;
+        border-bottom: 0px solid #999999;
     }
     input[name="mode_tab"] , input[name="stamp_line"]
     {
@@ -44,15 +71,18 @@
     }
     .tab_label
     {
+        padding: 0px 8px;
         margin:0px 8px;
-        border-bottom: 3px solid #5ab4bd;
-        background-color: #d9d9d9;
+        border: 1px solid #000000;
+        border-bottom: 4px solid #BBBBBB;
+        border-top: 4px solid #eeeeee;
+        background-color: #dddddd;
     }
     #TabStamp:checked ~ * #TabStampLabel ,
     #TabEdit:checked ~ * #TabEditLabel ,
     #TabTune:checked ~ * #TabTuneLabel 
     {
-        background-color: #5ab4bd;
+        background-color: #999999;
         color: #fff;
     }
     #TabStamp:checked ~ #TagStamper ,
@@ -71,7 +101,7 @@
     }    
     #TextArea
     {
-        height: 100%;
+        height: 115%;
         resize:none;
         flex:1 1 auto;
         margin: 4px;
@@ -130,6 +160,19 @@
     <div id="Player">
         <audio id="AudioPlayer" preload controls>
         </audio>
+        <label class="playerLabel"><span id="PlaybackRateText">再生速度×1.0</span><br>
+            <input type="range" id="PlaybackRate" min="0.25" max="2" value="1" step="0.25">
+        </label>
+        <label class="playerLabel">表示倍率<br>
+        <select id="MagnificationSelector">
+            <option>100</option>
+            <option selected>250</option>
+            <option>500</option>
+            <option>1000</option>
+        </select>
+        </label>
+        <label class="playerLabel">？</label>
+
     </div>
     <div id="WaveDisplay">
         <canvas id="WaveCanvas"></canvas>
@@ -147,7 +190,7 @@
         </ol>
     </div>
     <div id="TextEditor" class="TabContent">
-        <textarea id="TextArea"></textarea>
+        <textarea id="TextArea" spellcheck="false"></textarea>
         <div id="TextEditButtons">
             <button id="Download" type="button">ダウンロード</button>
         </div>
@@ -190,9 +233,12 @@ document.getElementById('Download').addEventListener('click', (e)=>{
 const audio = document.getElementById("AudioPlayer");
 const canvas = document.getElementById( 'WaveCanvas' );
 const textarea = document.getElementById('TextArea');
+const magnification_selector = document.getElementById('MagnificationSelector');
+const playbackRate = document.getElementById('PlaybackRate');
+
 
 var waveViewer;
-var Magnification = 500;
+var Magnification = Number(magnification_selector.value);
 var WaveViewTime = 0;
 var TuneModeDraw = null;
 
@@ -241,7 +287,21 @@ audio.addEventListener("pause", ()=>{
 });
 audio.addEventListener("ended",()=>{
 });
+
+
+magnification_selector.oninput = (e)=>{
+    Magnification = Number(magnification_selector.value);
+    DrawWaveView();
+};
+
+playbackRate.oninput = (e)=>{
+    audio.playbackRate = playbackRate.value;
+    const text = document.getElementById('PlaybackRateText');
+    text.textContent = "再生速度 ×" + (audio.playbackRate).toFixed(2);
+}
+
 }());
+
 
 /*
 */
@@ -253,7 +313,7 @@ var SetDefaultCanvaMouseEvent;
     canvas.ondragstart = (e)=>{return false;}
 
     function onMouseMove(e) {
-        WaveViewTime -=  (e.pageX - x) * (1000 / 500);
+        WaveViewTime -=  (e.pageX - x) * (1000 / Magnification);
         if (WaveViewTime < 0)
             WaveViewTime = 0;
         x = e.pageX;
@@ -915,6 +975,7 @@ function DropFiles(files)
                 ctx.font = canvas.height / 2 + "px sans-serif";
                 ctx.fillStyle = "white";
                 ctx.fillText("Now Loading...", 0, canvas.height * 3 / 4);
+                playbackRate.value = 1;
             };
             reader.readAsArrayBuffer(file);
             audioread = true;
