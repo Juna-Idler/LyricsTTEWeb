@@ -15,6 +15,8 @@
         height :100%;
         padding:2px;
         box-sizing: border-box;
+
+        user-select: none;
     }
     #WaveDisplay
     {
@@ -241,45 +243,51 @@ audio.addEventListener("ended",()=>{
 });
 }());
 
+/*
+*/
+
+var SetDefaultCanvaMouseEvent;
 (function WaveViewerMouseEvent(){
     var x;
     var playing;
-    const canvas = document.getElementById( 'WaveCanvas' );
     canvas.ondragstart = (e)=>{return false;}
-    canvas.addEventListener("mousedown", (e)=>{
-        if (TuneModeDraw == null)
-        {
-            playing = !audio.paused;
-            audio.pause();
-        }
-        x = e.pageX;
-        function onMouseMove(e) {
-            WaveViewTime -=  (e.pageX - x) * (1000 / 500);
-            if (WaveViewTime < 0)
-                WaveViewTime = 0;
 
-            //なんかここでエラーが出てるっぽいんだが全くわからん。
-            //とりあえずテスト用ファイルのデータ異常ではないか？という事にしておく。
-            //「魔王魂 ショート シャイニングスター.mp3」の0.65秒あたりに設定すると、
-            //以後、イベント"timeupdate"が発生しなくなる。play()もできなくなるっぽい
-            //コントローラーで再生しなおすと元に戻る。
-//            audio.currentTime = time;
-            x = e.pageX;
-            DrawWaveView();
-        }
-        function onMouseUp(e){
-            if (TuneModeDraw == null)
-            {
-                audio.currentTime = WaveViewTime / 1000;
-                if (playing)
-                    audio.play();
-            }
-            document.removeEventListener('mousemove', onMouseMove, false);
-            document.removeEventListener('mouseup', onMouseUp, false);
-        }
+    function onMouseMove(e) {
+        WaveViewTime -=  (e.pageX - x) * (1000 / 500);
+        if (WaveViewTime < 0)
+            WaveViewTime = 0;
+        x = e.pageX;
+        DrawWaveView();
+    }
+    function onMouseUp(e){
+        audio.currentTime = WaveViewTime / 1000;
+        if (playing)
+            audio.play();
+        document.removeEventListener('mousemove', onMouseMove, false);
+        document.removeEventListener('mouseup', onMouseUp, false);
+    }   
+    
+    function onMouseDown(e){
+        playing = !audio.paused;
+        audio.pause();
+        x = e.pageX;
         document.addEventListener("mousemove",onMouseMove, false);
         document.addEventListener("mouseup",onMouseUp, false);
-    }, false);
+    }
+
+    SetDefaultCanvaMouseEvent = (enable)=>{
+        if (enable)
+        {
+            canvas.addEventListener("mousedown",onMouseDown, false);
+        }
+        else
+        {
+            canvas.removeEventListener("mousedown",onMouseDown,false);
+        }
+
+    };
+    SetDefaultCanvaMouseEvent(true);
+
 }());
 
 (function CanvasResize(){
@@ -385,7 +393,7 @@ function keydown(e)
     switch (e.code)
     {
         case "KeyA":case "ArrowLeft":
-        if (item)
+            if (item)
             {
                 let i = item
                 while (i.previousElementSibling)
@@ -441,7 +449,7 @@ function keydown(e)
             {
                 label.dataset.starttime = audio.currentTime * 1000;
                 const time_span = item.querySelector(".list_time");
-                time_span.textContent = TimeTagElement.TimeString(label.dataset.starttime);
+                time_span.textContent = TimeTagElement.TimeString(audio.currentTime * 1000);
 
                 if (item.nextElementSibling)
                 {
@@ -542,66 +550,95 @@ EditModeInitializer = {Initialize:Initialize,Terminalize:Terminalize};
 
 (function TimeTuner(){
 
+
 const list = document.getElementById('TunerList');
+var currentListItem;
+var timeoutID = -1;
+function playFragment(startpoint_ms,duration_ms)
+{
+    clearTimeout(timeoutID);
+    audio.pause();
+    audio.currentTime = startpoint_ms/1000;
+    timeoutID = setTimeout(()=>{audio.pause()},duration_ms);
+    audio.play();
+}
+function getNextTime(li_element)
+{
+    let i = li_element;
+    while (i.nextElementSibling)
+    {
+        i = i.nextElementSibling;
+        const time = i.querySelector("label").dataset.starttime;
+        if (time >= 0)
+        {
+            return time;
+        }
+    }
+    return 99*6000+5999;
+}
 
 function keydown(e)
 {
     e.preventDefault();
 
-    const input = list.querySelector("input:checked");
-    const label = input ? input.parentElement : null;
-    const item = label ? label.parentElement : null;
+    const item = currentListItem;
+    const label = item.firstChild;
 
     switch (e.code)
     {
         case "KeyA":case "ArrowLeft":
-        if (item)
+            if (label)
             {
-                let i = item
-                while (i.previousElementSibling)
+                const time = label.dataset.starttime;
+                if (time < 0)
+                    break;
+                let starttime = time - 1000;
+                let duration = 1000;
+                if (starttime < 0)
                 {
-                    i = i.previousElementSibling;
-                    const time = i.querySelector("label").dataset.starttime;
-                    if (time >= 0)
-                    {
-                        audio.currentTime = time / 1000;
-                        i.querySelector("input").checked = true;
-                        i.scrollIntoView({behavior: "smooth", block: "center", inline: "nearest"})
-                        break;
-                    }
+                    duration -= -starttime;
+                    starttime = 0;
                 }
+                playFragment(starttime,duration);
             }
         break;
         case "KeyD":case "ArrowRight":
-            if (item)
+            if (label)
             {
-                let i = item
-                while (i.nextElementSibling)
-                {
-                    i = i.nextElementSibling;
-                    const time = i.querySelector("label").dataset.starttime;
-                    if (time >= 0)
-                    {
-                        audio.currentTime = time / 1000;
-                        i.querySelector("input").checked = true;
-                        i.scrollIntoView({behavior: "smooth", block: "center", inline: "nearest"})
-                        break;
-                    }
-                }
+                const time = label.dataset.starttime;
+                if (time < 0)
+                    break;
+                playFragment(time,1000);
             }
         break;
         case "KeyW":case "ArrowUp":
             if (item && item.previousElementSibling)
             {
-                item.previousElementSibling.querySelector("input").checked = true;
-                item.previousElementSibling.scrollIntoView({behavior: "smooth", block: "center", inline: "nearest"})
+                const i = item.previousElementSibling;
+                currentListItem = i;
+                i.querySelector("input").checked = true;
+                i.scrollIntoView({behavior: "smooth", block: "center", inline: "nearest"})
+                const time = i.querySelector("label").dataset.starttime;
+                if (time >= 0)
+                {
+                    WaveViewTime = time;
+                }
+                DrawWaveView();
             }
         break;
         case "KeyS":case "ArrowDown":
             if (item && item.nextElementSibling)
             {
-                item.nextElementSibling.querySelector("input").checked = true;
-                item.nextElementSibling.scrollIntoView({behavior: "smooth", block: "center", inline: "nearest"})
+                const i = item.nextElementSibling;
+                currentListItem = i;
+                i.querySelector("input").checked = true;
+                i.scrollIntoView({behavior: "smooth", block: "center", inline: "nearest"})
+                const time = i.querySelector("label").dataset.starttime;
+                if (time >= 0)
+                {
+                    WaveViewTime = time;
+                }
+                DrawWaveView();
             }
         break;
 
@@ -609,6 +646,12 @@ function keydown(e)
         case "Enter":
             if (item)
             {
+                if (label.dataset.starttime >= 0)
+                {
+                    const duration = getNextTime(item) - label.dataset.starttime;
+                    WaveViewTime = label.dataset.starttime;
+                    playFragment(WaveViewTime,duration);
+                }
             }
         break;
         case "Delete":
@@ -627,17 +670,95 @@ function keydown(e)
 }
 
 
+var x;
+var grap;
+function onDragMouseMove(e) {
+    const move_x = (e.pageX - x);
+    if (grap)
+    {
+        const label = currentListItem.firstChild;
+        let time = Number(label.dataset.starttime);
+        time += (move_x * (1000 / Magnification));
+        time = time < 0 ? 0 : time;
+        label.dataset.starttime = time;
+        const time_span = label.querySelector(".list_time");
+        time_span.textContent = TimeTagElement.TimeString(time);
+    }
+    else
+    {
+        WaveViewTime -=  (e.pageX - x) * (1000 / Magnification);
+        if (WaveViewTime < 0)
+            WaveViewTime = 0;
+    }
+    x = e.pageX;
+    DrawWaveView();
+}
+function onDragMouseUp(e){
+    document.removeEventListener('mousemove', onDragMouseMove, false);
+    document.removeEventListener('mouseup', onDragMouseUp, false);
+}
+function onMouseDown(e){
+    grap =(canvas.style.cursor == "pointer");
+    x = e.pageX;
+    document.addEventListener("mousemove",onDragMouseMove, false);
+    document.addEventListener("mouseup",onDragMouseUp, false);
+}
+function onMouseMove(e){
+    const time = currentListItem.firstChild.dataset.starttime;
+    if (time < 0)
+        return;
+
+    const nowpoint = Math.floor(canvas.width * 0.3)
+    const time_x = (time - WaveViewTime) * Magnification/1000 + nowpoint;
+    if (time_x - 24 < e.offsetX && e.offsetX < time_x + 24)
+    {
+        canvas.style.cursor = "pointer";
+    }
+    else
+    {
+        canvas.style.cursor = null;
+    }
+}
+
+
+
 function TimeTunerDraw()
 {
-    const width  = canvas.width;
-    const height = canvas.height;
-    const nowpoint = Math.floor(width * 0.3)
-    waveViewer.DrawCanvas(canvas,WaveViewTime - (nowpoint * 1000/Magnification),1000/Magnification);
+    const nowpoint = Math.floor(canvas.width * 0.3)
+    const view_start_ms = WaveViewTime - (nowpoint * 1000/Magnification);
+    waveViewer.DrawCanvas(canvas,view_start_ms,1000/Magnification);
     const ctx = canvas.getContext("2d");
+    ctx.font = canvas.height / 8 + "px sans-serif";
+    ctx.textBaseline = "ideographic";
 
-//    ctx.fillStyle = "white";
-//    ctx.fillRect(nowpoint,0,1,height);
+
+    const view_end_ms = view_start_ms + (canvas.width * 1000/Magnification);
+    let i = 0;
+    for (i = 0; i < list.children.length;i++)
+    {
+        if (list.children[i].firstChild.dataset.starttime >= 0 && view_start_ms < list.children[i].firstChild.dataset.starttime)
+            break;
+    }
+    for (; i < list.children.length;i++)
+    {
+        const label = list.children[i].firstChild;
+        const time = label.dataset.starttime;
+        if (time >= 0 && time >= view_end_ms)
+            break;
+        if (time < 0)
+            continue;
+
+//        const time_span = label.querySelector(".list_time");
+        const text_span = label.querySelector(".list_text");
+        const current = label.querySelector("input").checked;
+
+        ctx.fillStyle = current ? "lime" : "red";
+        const x = (time - view_start_ms) * Magnification/1000;
+        ctx.fillRect(x,0,1,canvas.height);
+        ctx.fillText(text_span.textContent, x + 1, canvas.height);
+    }
 }
+
 
 function Initialize()
 {
@@ -654,6 +775,10 @@ function Initialize()
         const radio = document.createElement("input");
         radio.type = "radio";
         radio.name = "stamp_line";
+        radio.onclick = (e) =>{
+            TimeTunerDraw();
+            currentListItem = e.currentTarget.parentElement.parentElement;
+        };
         label.appendChild(radio);
 
         const starttime = document.createElement("span");
@@ -664,16 +789,33 @@ function Initialize()
         text.textContent = line.text;
         text.classList.add("list_text");
 
+        label.ondblclick = (e)=>{
+            const l = e.currentTarget;
+
+            if (l.dataset.starttime >= 0)
+            {
+                const duration = getNextTime(l.parentElement) - l.dataset.starttime;
+                WaveViewTime = l.dataset.starttime;
+                playFragment(WaveViewTime,duration);
+            }
+            l.scrollIntoView({behavior: "smooth", block: "center", inline: "nearest"})
+        };
+
         label.appendChild(starttime);
         label.appendChild(text);
         li.appendChild(label);
         list.appendChild(li);
     });
-    list.querySelector("input").checked = true;
+    const input = list.querySelector("input");
+    input.checked = true;
+    currentListItem = input.parentElement.parentElement;
 
     document.addEventListener("keydown",keydown,false);
     TuneModeDraw = TimeTunerDraw;
     WaveViewTime = audio.currentTime;
+    SetDefaultCanvaMouseEvent(false);
+    canvas.addEventListener("mousedown",onMouseDown, false);
+    canvas.addEventListener("mousemove",onMouseMove, false);
 }
 
 function Terminalize()
@@ -691,6 +833,11 @@ function Terminalize()
     while (list.firstChild)
         list.firstChild.remove();
     document.removeEventListener("keydown",keydown,false);
+    clearTimeout(timeoutID);
+    canvas.removeEventListener("mousemove",onMouseMove, false);
+    canvas.removeEventListener("mousedown",onMouseDown, false);
+    SetDefaultCanvaMouseEvent(true);
+
 }
 
 TuneModeInitializer = {Initialize:Initialize,Terminalize:Terminalize};
