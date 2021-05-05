@@ -62,7 +62,7 @@
         padding-top: 2px;
         border-bottom: 0px solid #999999;
     }
-    input[name="mode_tab"] , input[name="stamp_line"]
+    input[name="mode_tab"] , input[name="stamp_line"] ,input[name="tune_line"]
     {
         display: none;
     }
@@ -107,6 +107,17 @@
         margin: 4px;
         padding: 4px;
     }
+    #TextEditorBottom
+    {
+        display: flex;
+        flex-direction: row-reverse;
+        align-items: center;        
+
+    }
+    .texteditor_controls
+    {
+        margin :0px 8px;
+    }
 
     #TagStamper , #TimeTuner
     {
@@ -127,10 +138,7 @@
         border-bottom: solid 1px #cccccc;
         line-height: 2;
     }
-    li::marker
-    {
 
-    }
     .list_time
     {
         background-color:#eeeeee ;
@@ -147,7 +155,7 @@
     {
         background-color:#FFDDDD ;
     }
-    .flex
+    .list_label
     {
         display: flex;
     }
@@ -180,10 +188,12 @@
     <input type="radio" id="TabStamp" name="mode_tab">
     <input type="radio" id="TabEdit" name="mode_tab" checked>
     <input type="radio" id="TabTune" name="mode_tab">
+    <input type="radio" id="TabTest" name="mode_tab">
     <div id="TabLabels">
         <label for="TabStamp" id="TabStampLabel" class="tab_label">TagStamp</label>
         <label for="TabEdit" id="TabEditLabel" class="tab_label">TextEdit</label>
         <label for="TabTune" id=TabTuneLabel class="tab_label">TimeTune</label>
+        <label for="TabTest" id=TabTestLabel class="tab_label">TTTest</label>
     </div>
     <div id="TagStamper" class="TabContent">
         <ol id="StamperList">
@@ -191,15 +201,20 @@
     </div>
     <div id="TextEditor" class="TabContent">
         <textarea id="TextArea" spellcheck="false"></textarea>
-        <div id="TextEditButtons">
-            <button id="Download" type="button">ダウンロード</button>
+        <div id="TextEditorBottom">
+            <button id="Download" type="button" class="texteditor_controls">ダウンロード</button>
+            <label><input type="checkbox" id="AutoSave" class="texteditor_controls">オートセーブ</label>
         </div>
     </div>
     <div id="TimeTuner" class="TabContent">
         <ol id="TunerList">
         </ol>
     </div>
+    <div id="TTTester" class="TabContent">
+
+    </div>
 </div>
+
 <script type='text/javascript' src='WaveViewer.js' defer></script>
 <script type='text/javascript' src='Lyrics.js' defer></script>
 <script defer>
@@ -220,8 +235,19 @@ document.getElementById('Download').addEventListener('click', (e)=>{
     const h = ('00' + now.getHours()).slice(-2);
     const mi = ('00' + (now.getMinutes()+1)).slice(-2);
 
-    a.download = y + "-" + m + d + "-" + h + mi + '.lrc';
+    if (audioFilename !== "")
+    {
+        const period = audioFilename.lastIndexOf(".");
+        if (period <= 0)
+            a.download = audioFilename + ".lrc";
+        else
+            a.download = audioFilename.substring(0,period) + ".lrc";
+    }
+    else
+        y + "-" + m + d + "-" + h + mi + '.lrc';
     a.href = url;
+
+//    if (window.confirm('Download:"' + a.download + '"' ))
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
@@ -236,6 +262,8 @@ const textarea = document.getElementById('TextArea');
 const magnification_selector = document.getElementById('MagnificationSelector');
 const playbackRate = document.getElementById('PlaybackRate');
 
+
+var audioFilename = "";
 
 var waveViewer;
 var Magnification = Number(magnification_selector.value);
@@ -414,6 +442,15 @@ function TabChange(e)
             TuneModeInitializer.Terminalize();
         break;
     }
+    if (document.getElementById("AutoSave").checked)
+    {
+        localStorage.setItem("autosave_lyrics",textarea.value);
+        localStorage.setItem("autosave_enable","true");
+    }
+    else
+    {
+        localStorage.removeItem("autosave_enable");        
+    }
     if (tab_edit.checked)
     {
         EditModeInitializer.Initialize();
@@ -430,6 +467,10 @@ function TabChange(e)
         LastMode = "tune";
     }
 }
+const aslyrics = localStorage.getItem("autosave_lyrics");
+textarea.value = aslyrics === null ? "" : aslyrics;
+if (localStorage.getItem("autosave_enable"))
+    document.getElementById("AutoSave").checked = true;
 
 tab_edit.addEventListener("change",TabChange);
 tab_stamp.addEventListener("change",TabChange);
@@ -550,7 +591,7 @@ function Initialize()
         const li = document.createElement("li");
 
         const label = document.createElement("label");
-        label.classList.add("flex");
+        label.classList.add("list_label");
         label.textContent = "　";
         label.dataset.starttime = line.starttime;
         const radio = document.createElement("input");
@@ -829,12 +870,12 @@ function Initialize()
         const li = document.createElement("li");
 
         const label = document.createElement("label");
-        label.classList.add("flex");
+        label.classList.add("list_label");
         label.textContent = "　";
         label.dataset.starttime = line.starttime;
         const radio = document.createElement("input");
         radio.type = "radio";
-        radio.name = "stamp_line";
+        radio.name = "tune_line";
         radio.onclick = (e) =>{
             TimeTunerDraw();
             currentListItem = e.currentTarget.parentElement.parentElement;
@@ -979,6 +1020,7 @@ function DropFiles(files)
             };
             reader.readAsArrayBuffer(file);
             audioread = true;
+            audioFilename = file.name;
         }
         else if (file.type.indexOf("text/") == 0 || file.name.match(/\.lrc$/i))
         {
