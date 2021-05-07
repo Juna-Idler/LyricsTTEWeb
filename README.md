@@ -11,3 +11,7 @@ Lyrics Time Tag Editor のWebアプリ版
 
 
 とりあえず使えそうなところまで出来たからREADME書いてみたけど、まだ未完成だよ。
+
+とりあえずPagesで
+https://juna-idler.github.io/LyricsTTEWeb/
+
