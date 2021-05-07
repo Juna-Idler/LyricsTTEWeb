@@ -1,59 +1,61 @@
 
 class WaveViewer
 {
-    constructor(arrayBuffer,onload)
+    constructor(audioBuffer)
     {
         this.ms_length = 0;
         this.minSampleSet = null;
-        this.maxSampleSet;
+        this.maxSampleSet = null;
 
-        const actx = new AudioContext();
-        actx.decodeAudioData(arrayBuffer).then((audioBuffer) =>{
-
-            let mono;
-            if (audioBuffer.numberOfChannels > 1)
+        let mono;
+        if (audioBuffer.numberOfChannels > 1)
+        {
+            mono = new Float32Array(audioBuffer.length);
+            const l = audioBuffer.getChannelData(0);
+            const r = audioBuffer.getChannelData(1);
+            for (let i = 0; i < audioBuffer.length;i++)
             {
-                mono = new Float32Array(audioBuffer.length);
-                const l = audioBuffer.getChannelData(0);
-                const r = audioBuffer.getChannelData(1);
-                for (let i = 0; i < audioBuffer.length;i++)
-                {
-                    mono[i] = (l[i] + r[i]) / 2;
-                }
+                mono[i] = (l[i] + r[i]) / 2;
             }
-            else if (audioBuffer.numberOfChannels > 0)
-            {
-                mono = audioBuffer.getChannelData(0);
-            }
-            this.ms_length = Math.floor(audioBuffer.duration * 1000);
+        }
+        else if (audioBuffer.numberOfChannels > 0)
+        {
+            mono = audioBuffer.getChannelData(0);
+        }
+        this.ms_length = Math.floor(audioBuffer.duration * 1000);
 
-            //Samples per Sec = 1000   0.001秒
-            this.minSampleSet = new Float32Array(this.ms_length + 100);
-            this.maxSampleSet = new Float32Array(this.ms_length + 100);
-            const frequency = audioBuffer.sampleRate;
-            let sample_pos = 0;
+        //Samples per Sec = 1000   0.001秒
+        this.minSampleSet = new Float32Array(this.ms_length + 100);
+        this.maxSampleSet = new Float32Array(this.ms_length + 100);
+        const frequency = audioBuffer.sampleRate;
+        let sample_pos = 0;
 
-            for (let i = 0;i < this.ms_length - 1;i++)
+        for (let i = 0;i < this.ms_length - 1;i++)
+        {
+            let min = 1,max = -1;
+            while (sample_pos < (i + 1) * frequency / 1000)
             {
-                let min = 1,max = -1;
-                while (sample_pos < (i + 1) * frequency / 1000)
-                {
-                    min = Math.min(mono[sample_pos],min);
-                    max = Math.max(mono[sample_pos],max);
-                    sample_pos++;
-                }
-                this.minSampleSet[i] = min;
-                this.maxSampleSet[i] = max;
-            }
-            while (sample_pos < audioBuffer.length)
-            {
-                this.minSampleSet[this.ms_length-1] = Math.min(mono[sample_pos],this.minSampleSet[this.ms_length-1]);
-                this.maxSampleSet[this.ms_length-1] = Math.max(mono[sample_pos],this.maxSampleSet[this.ms_length-1]);
+                min = Math.min(mono[sample_pos],min);
+                max = Math.max(mono[sample_pos],max);
                 sample_pos++;
             }
-            onload(this);
-        });
+            this.minSampleSet[i] = min;
+            this.maxSampleSet[i] = max;
+        }
+        while (sample_pos < audioBuffer.length)
+        {
+            this.minSampleSet[this.ms_length-1] = Math.min(mono[sample_pos],this.minSampleSet[this.ms_length-1]);
+            this.maxSampleSet[this.ms_length-1] = Math.max(mono[sample_pos],this.maxSampleSet[this.ms_length-1]);
+            sample_pos++;
+        }
     }
+    static async Create(arrayBuffer)
+    {
+        const actx = new AudioContext();
+        return new WaveViewer(await actx.decodeAudioData(arrayBuffer));
+    }
+
+
     get isValid() {return this.ms_length != 0;}
 
     DrawCanvas(canvas,start_ms,ms_per_dot,lazy = false)
@@ -99,6 +101,5 @@ class WaveViewer
         }
 
     }
-
 
 }

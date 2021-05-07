@@ -262,9 +262,10 @@
     </div>
 </div>
 
-<script type='text/javascript' src='WaveViewer.js' defer></script>
-<script type='text/javascript' src='Lyrics.js' defer></script>
-<script defer>
+<script type='text/javascript' src='WaveViewer.js'></script>
+<script type='text/javascript' src='AudioFragmentPlayer.js'></script>
+<script type='text/javascript' src='Lyrics.js'></script>
+<script>
 
 (function LrCDownload(){
     document.getElementById('Download').addEventListener('click', (e)=>{
@@ -316,6 +317,8 @@ var waveViewer;
 var Magnification = Number(magnification_selector.value);
 var WaveViewTime = 0;
 var TuneModeDraw = null;
+
+var fragmentPlayer = null;
 
 var EditModeInitializer;
 var StampModeInitializer;
@@ -715,14 +718,9 @@ var SetDefaultCanvaMouseEvent;
 
     const list = document.getElementById('TunerList');
     var currentListItem;
-    var timeoutID = -1;
     function playFragment(startpoint_ms,duration_ms)
     {
-        clearTimeout(timeoutID);
-        audio.pause();
-        audio.currentTime = startpoint_ms/1000;
-        timeoutID = setTimeout(()=>{audio.pause()},duration_ms);
-        audio.play();
+        fragmentPlayer.playOnly(startpoint_ms / 1000,duration_ms / 1000);
     }
     function getNextTime(li_element)
     {
@@ -813,6 +811,7 @@ var SetDefaultCanvaMouseEvent;
                         const duration = getNextTime(item) - label.dataset.starttime;
                         WaveViewTime = label.dataset.starttime;
                         playFragment(WaveViewTime,duration);
+                        DrawWaveView();
                     }
                 }
             break;
@@ -872,7 +871,7 @@ var SetDefaultCanvaMouseEvent;
 
         const nowpoint = Math.floor(canvas.width * 0.3)
         const time_x = (time - WaveViewTime) * Magnification/1000 + nowpoint;
-        if (time_x - 24 < e.offsetX && e.offsetX < time_x + 24)
+        if (time_x - 16 < e.offsetX && e.offsetX < time_x + 16)
         {
             canvas.style.cursor = "pointer";
         }
@@ -881,7 +880,30 @@ var SetDefaultCanvaMouseEvent;
             canvas.style.cursor = null;
         }
     }
+    function onDblClick(e){
+        const time = currentListItem.firstChild.dataset.starttime;
+        if (time < 0)
+            return;
 
+        const nowpoint = Math.floor(canvas.width * 0.3)
+        const time_x = (time - WaveViewTime) * Magnification/1000 + nowpoint;
+        if (time_x < e.offsetX)
+        {
+            const duration = getNextTime(currentListItem) - time;
+            playFragment(time,duration);
+        }
+        if (e.offsetX < time_x)
+        {
+            let starttime = time - 1000;
+            let duration = 1000;
+            if (starttime < 0)
+            {
+                duration -= -starttime;
+                starttime = 0;
+            }
+            playFragment(starttime,duration);
+        }
+    }
 
 
     function TimeTunerDraw()
@@ -959,6 +981,7 @@ var SetDefaultCanvaMouseEvent;
                     const duration = getNextTime(l.parentElement) - l.dataset.starttime;
                     WaveViewTime = l.dataset.starttime;
                     playFragment(WaveViewTime,duration);
+                    DrawWaveView();
                 }
                 l.scrollIntoView({behavior: "smooth", block: "center", inline: "nearest"})
             };
@@ -972,12 +995,14 @@ var SetDefaultCanvaMouseEvent;
         input.checked = true;
         currentListItem = input.parentElement.parentElement;
 
+        audio.pause();
+
         document.addEventListener("keydown",keydown,false);
         TuneModeDraw = TimeTunerDraw;
-        WaveViewTime = audio.currentTime;
         SetDefaultCanvaMouseEvent(false);
         canvas.addEventListener("mousedown",onMouseDown, false);
         canvas.addEventListener("mousemove",onMouseMove, false);
+        canvas.addEventListener("dblclick",onDblClick,false);
     }
 
     function Terminalize()
@@ -995,11 +1020,10 @@ var SetDefaultCanvaMouseEvent;
         while (list.firstChild)
             list.firstChild.remove();
         document.removeEventListener("keydown",keydown,false);
-        clearTimeout(timeoutID);
+        canvas.removeEventListener("dblclick",onDblClick,false);
         canvas.removeEventListener("mousemove",onMouseMove, false);
         canvas.removeEventListener("mousedown",onMouseDown, false);
         SetDefaultCanvaMouseEvent(true);
-
     }
 
     TuneModeInitializer = {Initialize:Initialize,Terminalize:Terminalize};
@@ -1137,20 +1161,21 @@ function DropFiles(files)
             if (audioread)
                 continue;
             audio.src = window.URL.createObjectURL(file);
-            var reader = new FileReader();
-            reader.onload = () => {
-                WaveViewTime = 0;
-                waveViewer = new WaveViewer(reader.result,DrawWaveView);
-
-                const ctx = canvas.getContext("2d");
-                ctx.font = canvas.height / 2 + "px sans-serif";
-                ctx.fillStyle = "white";
-                ctx.fillText("Now Loading...", 0, canvas.height * 3 / 4);
-                playbackRate.value = 1;
-            };
-            reader.readAsArrayBuffer(file);
+            const ctx = canvas.getContext("2d");
+            ctx.font = canvas.height / 2 + "px sans-serif";
+            ctx.fillStyle = "white";
+            ctx.fillText("Now Loading...", 0, canvas.height * 3 / 4);
             audioread = true;
             audioFilename = file.name;
+
+            if (fragmentPlayer === null)
+                fragmentPlayer  = new AudioFragmentPlayer();
+            fragmentPlayer.loadFile(file).then(()=>{
+                waveViewer = new WaveViewer(fragmentPlayer.audioBuffer);
+                WaveViewTime = 0;
+                playbackRate.value = 1;
+                DrawWaveView();
+            });
         }
         else if (file.type.indexOf("text/") == 0 || file.name.match(/\.lrc$/i))
         {
@@ -1158,12 +1183,9 @@ function DropFiles(files)
             const editmode = document.getElementById( 'TabEdit' ).checked;
             if (editmode && !textread)
             {
-                let reader = new FileReader();
-                reader.readAsText(file);
-                reader.onload = ()=> {
-                    textarea.value = reader.result;
-
-                }
+                file.text().then(text=>{
+                    textarea.value = text;
+                })
                 textread = true;
             }
         }

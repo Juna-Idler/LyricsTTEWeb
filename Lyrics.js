@@ -12,7 +12,7 @@ class TimeTagElement
         }
         return new TimeTagElement(-1,text);
     }
-        constructor(starttime,text)
+    constructor(starttime,text)
     {
         this.text = text;
         this.starttime = starttime;
