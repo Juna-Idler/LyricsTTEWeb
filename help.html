@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html>
+<meta charset="utf-8">
+<title>LyricsTTE Web Help</title>
+
+<style>
+    body{
+        color: black;
+        background-color: white;
+    }
+    section{
+        border-bottom: black 2px solid;
+    }
+    h2{
+        margin :4px 0px 0px;
+    }
+    #Basic , #Basic li
+    {
+        background-color: white;
+        color: black;
+    }
+    #FlexTables
+    {
+        display: flex;
+    }
+
+    table {
+        border: 2px solid black;
+        border-collapse: collapse;
+        margin: 0px 2px 4px;
+    }
+    table th
+    {
+        text-align: center;
+        border: 1px solid black;
+        background-color: rgb(192, 255, 255);
+    }
+    table td
+    {
+        text-align: left;
+        border: 1px solid black;
+        padding-left: 4px;
+    }
+</style>
+
+</head>
+<body>
+    <section id="Basic">
+    <h2>基本的な流れ</h2>
+    <ol>
+    <li>
+    [TextEdit]のtextareaに歌詞を張り付ける、もしくは歌詞ファイルをドラッグアンドドロップ。<BR>
+    ブラウザが対応しているオーディオファイルをドラッグアンドドロップ。
+    </li>
+    <li>
+	[TagStamp]にして音楽再生。スペースキーでタグ打ち。他のキー操作は下のほうに書いておく。<BR>
+    波形画面をマウスでドラッグすると再生位置も動く。
+    </li>
+    <li>
+    [TimeTune]で微調整が可能。現在行の時間を波形画面で掴んで動かせる。<BR>
+    例によってキー操作は下を見ろ。
+    </li>
+    <li>
+    [TTTest]では簡単な表示テストが行える。
+    </li>
+    <li>
+    最後に[TextEdit]に戻って、コピペするか、右下の「ダウンロード」で.lrcファイルとして保存することも可能。<BR>
+    「オートセーブ」は<B>モード移動したとき</B>編集中の内容がブラウザ依存のどこかに保存される。このページを開きなおした時に保存データがあると、復元される。
+    </li>
+    </ol>
+</section>
+<section>
+<h2>操作説明</h2>
+<div id="FlexTables">
+<table>
+    <caption>キー入力操作</caption>
+    <thead>
+        <tr><th>key</th><th>TabStamp</th><th>TimeTune</th></tr>
+    </thead>
+    <tbody>
+        <tr><td>W ↑</td><td colspan="2">現在行を上に</td></tr>
+        <tr><td>S ↓</td><td colspan="2">現在行を下に</td></tr>
+        <tr><td>A ←</td><td>前のタグ行を再生</td><td>タグがあるならタグ手前1秒再生</td></tr>
+        <tr><td>D →</td><td>次のタグ行を再生</td><td>タグがあるならタグから1秒再生</td></tr>
+        <tr><td>Space Enter</td><td>タグを打ち込み次の行へ</td><td>タグがあるなら一行再生</td></tr>
+        <tr><td>Delete</td><td>現在行のタグ消去</td><td>何もしない</td></tr>
+        <tr><td>x</td><td>play/pause</td><td>何もしない</td></tr>
+        <tr><td>Z / C</td><td>一秒戻す/進める</td><td>何もしない</td></tr>
+    </tbody>
+</table>
+<table>
+    <caption>TimeTuneマウス操作</caption>
+    <thead><tr><th>操作</th><th>説明</th></tr></thead>
+    <tbody>
+        <tr><th colspan="2">波形画面</th></tr>
+        <tr><td>現在行タグマーカーをドラッグ</td><td>タグの時間を変更</td></tr>
+        <tr><td>他の位置でドラッグ</td><td>表示位置を移動</td></tr>
+        <tr><td>現在行タグマーカーの左側でダブルクリック</td><td>タグ手前1秒再生</td></tr>
+        <tr><td>現在行タグマーカーの右側でダブルクリック</td><td>タグから1秒再生</td></tr>
+        <tr><th colspan="2">リスト画面</th></tr>
+        <tr><td>クリック</td><td>クリックした行を現在行に</td></tr>
+        <tr><td>ダブルクリック</td><td>タグがあるなら一行再生</td></tr>
+    </tbody>
+</table>
+</div>
+</section>
+<section>
+<h2>細かい説明</h2>
+とりあえず書きなぐって未成型
+
+オーディオ操作
+ブラウザ依存のaudioタグによるコントロールパネル
+再生速度
+audioの機能を使ったplaybackRate変更。とりあえず実用範囲内と思われる0.25～2.00を0.25刻みで。
+表示倍率
+波形表示の倍率。数値は1秒の波形を表示するのに使うpixel幅。PixelsPerSecond?
+？
+この画面です
+
+波形表示
+読み込んだオーディオファイルの波形です。
+TimeTuneモード以外ではドラッグの左右移動でaudioの再生位置を動かせます
+サイズ変更可能で、真っ黒で見えないけど右下にresizeハンドルがあります
+
+ドラッグアンドドロップ
+音声ファイルとテキストファイルを受け入れます。
+ブラウザが判定したMIMEタイプが、"audio/*"なら音声ファイルとして読み込み、
+"text/*"または拡張子が".lrc"なら、テキスト（UTF8）として読み込みます。
+複数ファイルの同時ドロップにも対応。
+同時に同種のファイルがドロップした場合、最初に読み込みが成功したものが選ばれ以降の同種はスキップします。
+音声ファイルの入力方法はこれしかありません。
+
+
+
+タブっぽいのとその内容
+
+TagStamp
+タグを打ち込みます
+
+
+TextEdit
+テキストを直接編集します
+「ダウンロード」でtextareaの内容を.lrcファイルとしてダウンロードできます。
+「オートセーブ」
+細かい動作説明をすると、タブを押してモード移動したときに、そのタブでの最新の内容をtextareaに書き出す処理をします。
+その時にオートセーブにチェックが入っていれば、その内容をlocalStrageに保存します。
+保存された内容は次にこのページを新しく開いたときに読み込まれます。
+一度オートセーブされると、チェックを切ってもセーブされた内容は残り、毎回表示されます。
+空の状態でオートセーブし、オートセーブを切ってタブ移動するとlocalStrageからキーも含めて削除できます。
+
+
+TimeTune
+タイムタグを波形を見ながら微調整できるLyricsTTEの目玉のモードです。
+このモードの時のみWeb Audio APIを使って生の音声データを操作するので、波形表示はaudioから切り離されます。
+
+TTTest
+テスト表示
+<S>ちなみに"TTTEST"は"Time Tag Text Edit Stamp Tune"の略です</S>
+
+
+オリジナルのLyricsTTEではマウスだけで操作できる様になっていたが、
+なんかWebアプリって右クリックを機能として使うと負けな雰囲気。
+ということでキーボード操作で代用してみた。
+まあオリジナルは「キー入力出来るようにプログラムを組む」のが面倒だったので全部マウスでやった側面も。
+</section>
+</body>
+</html>
