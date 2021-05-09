@@ -3,7 +3,8 @@
     document.getElementById('Download').addEventListener('click', (e)=>{
         e.preventDefault();
         const text = document.getElementById('TextArea').value;
-        const blob = new Blob([text], {type: 'text/plain'});
+        const blob = new Blob(new Uint8Array([0xEF, 0xBB, 0xBF]),[text], {type: 'text/plain'});
+//        const blob = new Blob([text], {type: 'text/plain'});
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         document.body.appendChild(a);
@@ -120,7 +121,7 @@ function DrawWaveView()
 /*
 */
 
-var SetDefaultCanvaMouseEvent;
+var SetDefaultCanvasMouseEvent;
 (function WaveViewerMouseEvent(){
     var x;
     var playing;
@@ -149,7 +150,7 @@ var SetDefaultCanvaMouseEvent;
         document.addEventListener("mouseup",onMouseUp, false);
     }
 
-    SetDefaultCanvaMouseEvent = (enable)=>{
+    SetDefaultCanvasMouseEvent = (enable)=>{
         if (enable)
         {
             canvas.addEventListener("mousedown",onMouseDown, false);
@@ -160,7 +161,7 @@ var SetDefaultCanvaMouseEvent;
         }
 
     };
-    SetDefaultCanvaMouseEvent(true);
+    SetDefaultCanvasMouseEvent(true);
 
 }());
 
@@ -734,7 +735,7 @@ var SetDefaultCanvaMouseEvent;
 
         document.addEventListener("keydown",keydown,false);
         TuneModeDraw = TimeTunerDraw;
-        SetDefaultCanvaMouseEvent(false);
+        SetDefaultCanvasMouseEvent(false);
         canvas.addEventListener("mousedown",onMouseDown, false);
         canvas.addEventListener("mousemove",onMouseMove, false);
         canvas.addEventListener("dblclick",onDblClick,false);
@@ -759,7 +760,7 @@ var SetDefaultCanvaMouseEvent;
         canvas.removeEventListener("dblclick",onDblClick,false);
         canvas.removeEventListener("mousemove",onMouseMove, false);
         canvas.removeEventListener("mousedown",onMouseDown, false);
-        SetDefaultCanvaMouseEvent(true);
+        SetDefaultCanvasMouseEvent(true);
     }
 
     TuneModeInitializer = {Initialize:Initialize,Terminalize:Terminalize};
