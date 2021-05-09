@@ -4,7 +4,7 @@
     "description": "タイムタグ付き歌詞(.lrc)を波形を見ながら編集するソフト。",
     "icons": [
       {
-        "src": "./ltte48.png",
+        "src": "./LTTE48.png",
         "sizes": "48x48",
         "type": "image/png"
       },
