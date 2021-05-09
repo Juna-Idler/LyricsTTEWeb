@@ -7,9 +7,14 @@
         "src": "./ltte48.png",
         "sizes": "48x48",
         "type": "image/png"
+      },
+      {
+        "src": "./LTTE144.png",
+        "sizes": "144x144",
+        "type": "image/png"
       }
     ],
     "start_url": "./index.html",
     "display": "fullscreen",
     "background_color": "black"
-  }
+}
