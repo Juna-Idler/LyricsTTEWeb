@@ -1,5 +1,5 @@
 
-(function LrCDownload(){
+(function LrcDownload(){
     document.getElementById('Download').addEventListener('click', (e)=>{
         e.preventDefault();
         const text = document.getElementById('TextArea').value;
@@ -25,7 +25,7 @@
                 a.download = audioFilename.substring(0,period) + ".lrc";
         }
         else
-            y + "-" + m + d + "-" + h + mi + '.lrc';
+            a.download = y + "-" + m + d + "-" + h + mi + '.lrc';
         a.href = url;
 
 //    if (window.confirm('Download:"' + a.download + '"' ))
@@ -825,7 +825,7 @@ var SetDefaultCanvasMouseEvent;
         list.appendChild(li);
 
         audio.addEventListener("play",onPlay);
-        audio.addEventListener("timeupdate",onPlay);
+        audio.addEventListener("timeupdate",onTimeupdate);
     }
     function Terminalize()
     {
@@ -833,7 +833,7 @@ var SetDefaultCanvasMouseEvent;
             list.firstChild.remove();
 
         audio.removeEventListener("play",onPlay);
-        audio.removeEventListener("timeupdate",onPlay);
+        audio.removeEventListener("timeupdate",onTimeupdate);
     }
     TestModeInitializer = {Initialize:Initialize,Terminalize:Terminalize};
 
