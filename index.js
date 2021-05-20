@@ -3,7 +3,7 @@
     document.getElementById('Download').addEventListener('click', (e)=>{
         e.preventDefault();
         const text = document.getElementById('TextArea').value;
-        const blob = new Blob(new Uint8Array([0xEF, 0xBB, 0xBF]),[text], {type: 'text/plain'});
+        const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]),text], {type: 'text/plain'});
 //        const blob = new Blob([text], {type: 'text/plain'});
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
