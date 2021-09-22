@@ -248,10 +248,10 @@
     <div id="PlayerArea">
         <audio id="AudioPlayer" preload controls>
         </audio>
-        <span class="playerLabel"><span id="PlaybackRateText">再生速度×1.0</span><br>
+        <span class="playerLabel">Rate×<span id="PlaybackRateText">1.0</span><br>
             <input type="range" id="PlaybackRate" min="0.25" max="2" value="1" step="0.25">
         </span>
-        <span class="playerLabel">表示倍率<br>
+        <span class="playerLabel">Zoom<br>
         <select id="MagnificationSelector">
             <option>100</option>
             <option selected>250</option>
@@ -288,8 +288,8 @@
     <div id="TextEditor" class="TabContent">
         <textarea id="TextArea" spellcheck="false"></textarea>
         <div id="TextEditorBottom">
-            <button id="Download" type="button" class="texteditor_controls">ダウンロード</button>
-            <label><input type="checkbox" id="AutoSave" class="texteditor_controls">オートセーブ</label>
+            <button id="Download" type="button" class="texteditor_controls">Download</button>
+            <label><input type="checkbox" id="AutoSave" class="texteditor_controls">Auto save</label>
         </div>
     </div>
     <div id="TimeTuner" class="TabContent">
